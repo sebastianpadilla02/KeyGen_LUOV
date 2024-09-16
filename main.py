@@ -1,0 +1,16 @@
+op = 0
+
+while op < 1 or op > 3:
+    op = int(input("Ingrese el número del nivel de seguridad que quiere implmentar en su llave\n \t1. LUOV-7-57-197 \n \t2. LUOV-7-83-283\n \t3. LUOV-7-110-374\nIngresa la opción: "))
+    if(op < 1 and op > 3):
+        print('Ingrese una opción válida')
+
+#params = [r, m, v, SHAKE]
+if op == 1:
+    params = [7, 57, 197, 128]
+elif op == 2:
+    params = [7, 83, 283, 256]
+elif op == 3:
+    params = [7, 110, 374, 256]
+
+print(params)
