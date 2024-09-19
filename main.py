@@ -27,4 +27,8 @@ def generar_semilla_privada():
 if __name__ == "__main__":
     params = lectura_params()
     private_seed = generar_semilla_privada()
-    KG(params, private_seed)
+    llaves = KG(params, private_seed)
+    public_key, private_key = llaves.public_key, llaves.private_seed
+    print(f'public key: {public_key}')
+    print(f'private key: {private_key}')
+    
