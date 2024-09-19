@@ -6,6 +6,14 @@ El proyecto está basado en el esquema criptográfico LUOV, se hará la generaci
 
 * Sebastian Arteta Padilla
 
-* German Centanaro
+* German Centanaro Oviedo
 
-* Luis Espinel
+* Luis Espinel Luna
+
+## Asignatura 
+
+* Criptografía
+
+## Universidad del norte - 2024-30
+
+## Septiembre 2024
