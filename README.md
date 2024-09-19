@@ -10,9 +10,7 @@ El proyecto está basado en el esquema criptográfico LUOV, se hará la generaci
 
 * Luis Espinel Luna
 
-## Asignatura 
-
-* Criptografía
+## Criptografía
 
 ## Universidad del norte - 2024-30
 
