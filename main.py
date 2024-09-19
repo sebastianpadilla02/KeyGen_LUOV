@@ -1,6 +1,6 @@
 import os
 
-from keygen import KeyGen
+from keygen import KG
 
 def lectura_params():
     op = 0
@@ -27,4 +27,4 @@ def generar_semilla_privada():
 if __name__ == "__main__":
     params = lectura_params()
     private_seed = generar_semilla_privada()
-    KeyGen(params, private_seed)
+    KG(params, private_seed)
