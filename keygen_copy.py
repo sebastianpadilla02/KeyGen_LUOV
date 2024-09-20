@@ -14,8 +14,8 @@ class KG:
 
     def KeyGen(self, private_seed: bytes):
         private_sponge = self.InitializeAndAbsorb(private_seed)
-        public_seed = self.SqueezePublicSeed(private_sponge)
-        T = self.SqueezeT(private_sponge)
+        #public_seed = self.SqueezePublicSeed(private_sponge)
+        public_seed, T = self.SqueezeT(private_sponge)
         self.SHAKE = 128
         public_sponge = self.InitializeAndAbsorb(public_seed)
         C, L, Q1 = self.SqueezePublicMap(public_sponge)
@@ -32,20 +32,28 @@ class KG:
 
         return shake
 
-    def SqueezePublicSeed(self, private_sponge: hashlib) -> bytes:
-        return private_sponge.digest(32)  # Obtener 32 bytes (256 bits) de la esponja
+    # def SqueezePublicSeed(self, private_sponge: hashlib) -> bytes:
+    #     return private_sponge.digest(32)  # Obtener 32 bytes (256 bits) de la esponja
 
     def SqueezeT(self, private_sponge: hashlib):
         T = np.zeros((self.v, self.m), dtype = int)
         # Calcular el número de bytes necesarios para generar una matriz de v x m bits
         num_bytes = (self.v * self.m + 7) // 8  # Redondear al mayor(función techo) para asegurarse de tener suficientes bits
-        random_bytes = private_sponge.digest(num_bytes)  # Exprimir los bytes necesarios
+        
+        random_bytes = private_sponge.digest(32 + num_bytes)  # Exprimir los bytes necesarios
+        public_seed = random_bytes[:32]  # Los primeros 32 bytes son la semilla pública
+        print(public_seed)
+        random_bytes = random_bytes[32:]  # Los bytes restantes son para la matriz T
+
         bits = ''.join(f'{byte:08b}' for byte in random_bytes)  # Convertir los bytes a bits
         
+        # Verificar que tenemos suficientes bits
+        assert len(bits) >= self.v * self.m, "Error: no hay suficientes bits para llenar la matriz T."
+
         for i in range(self.v):
             for j in range(self.m):
                 T[i, j] = int(bits[i * self.m + j])  # Asignar los bits a la matriz T
-        return T
+        return public_seed, T
 
     def squeeze_bits(self, shake, num_bits):
         """Función para exprimir una cantidad específica de bits de la esponja."""

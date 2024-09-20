@@ -1,6 +1,6 @@
 import os
 
-from keygen import KG
+from keygen_copy import KG
 
 def lectura_params():
     op = 0
