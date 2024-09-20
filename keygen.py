@@ -9,7 +9,7 @@ class KG:
         self.v = params[2]
         self.SHAKE = params[3]
         self.KeyGen(private_seed)
-        self.public_key = None
+        self.public_key
 
     def KeyGen(self, private_seed):
         private_sponge = self.InitializeAndAbsorb(private_seed, self.SHAKE)
@@ -83,7 +83,7 @@ class KG:
         Pk_2 = np.zeros((self.v, self.m), dtype = int)
         column = 0
         for i in range(self.v):
-            column = column + self.v - i + 1
+            column = column + self.v - i
             for j in range(self.m):
                 Pk_2[i,j] = Q1[k, column]
                 column += 1
@@ -132,7 +132,6 @@ class KG:
             for i in range(self.m):
                 concat_bits += str(Q2[i, j])
 
-        print(concat_bits)
         pk = self.bit_string_to_bytes(concat_bits)
 
         return pk
