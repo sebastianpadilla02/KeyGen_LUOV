@@ -16,6 +16,7 @@ class KG:
         private_sponge = self.InitializeAndAbsorb(private_seed)
         #public_seed = self.SqueezePublicSeed(private_sponge)
         public_seed, T = self.SqueezeT(private_sponge)
+        print(T)
         self.SHAKE = 128
         public_sponge = self.InitializeAndAbsorb(public_seed)
         C, L, Q1 = self.SqueezePublicMap(public_sponge)
@@ -37,22 +38,68 @@ class KG:
 
     def SqueezeT(self, private_sponge: hashlib):
         T = np.zeros((self.v, self.m), dtype = int)
+
         # Calcular el número de bytes necesarios para generar una matriz de v x m bits
-        num_bytes = (self.v * self.m + 7) // 8  # Redondear al mayor(función techo) para asegurarse de tener suficientes bits
+        num_bytes = ((self.m + 7) // 8) * self.v  # Redondear al mayor(función techo) para asegurarse de tener suficientes bits
         
         random_bytes = private_sponge.digest(32 + num_bytes)  # Exprimir los bytes necesarios
+        #print(f'Tamaño de bytes generados por shake: {len(random_bytes)}')
+
         public_seed = random_bytes[:32]  # Los primeros 32 bytes son la semilla pública
-        print(public_seed)
-        random_bytes = random_bytes[32:]  # Los bytes restantes son para la matriz T
 
-        bits = ''.join(f'{byte:08b}' for byte in random_bytes)  # Convertir los bytes a bits
-        
-        # Verificar que tenemos suficientes bits
-        assert len(bits) >= self.v * self.m, "Error: no hay suficientes bits para llenar la matriz T."
+        print(f'Semilla publica: {public_seed} y su tamaño {len(public_seed)}')
 
+        random_bytes_for_T = random_bytes[32:]  # Los bytes restantes son para la matriz T
+        #print(f'num de bits restantes {len(random_bytes_for_T)}')
+        #print(random_bytes_for_T)
+
+        # Extraemos los bits correspondientes a cada fila de la matriz T
         for i in range(self.v):
+            # Encontrar los bytes correspondientes a la fila i
+            start_byte_index = (i * (self.m + 7)) // 8  # Inicio del rango de bytes para la fila i
+            end_byte_index = ((i + 1) * (self.m + 7)) // 8  # Final del rango de bytes para la fila i
+            #print(f'start: {start_byte_index}, end: {end_byte_index}')
+            byte_chunk = random_bytes_for_T[start_byte_index:end_byte_index]  # Obtener los bytes correspondientes
+            # print(f'{byte_chunk} de tamaño: {len(byte_chunk)}')
+            # for k in byte_chunk:
+            #     print(bytes([k]))
+        
+            # Tomar todos los bytes excepto el último
+            all_but_last = byte_chunk[:-1]
+
+            #print(f'Todos menos el ultimo: {all_but_last} y longitud {len(all_but_last)}')
+            # Tomar el último byte
+            last_byte = bytes([byte_chunk[-1]])
+            
+            # print(f'Tipos: Todos:{type(all_but_last)}, Ultimo: {type(last_byte)}')
+
+            # print(f'ultimo: {last_byte} y longitud {len(last_byte)}')
+
+            bits = ''.join(f'{byte:08b}' for byte in all_but_last)  # Convertir los bytes a bits
+
+            bits_faltantes = self.m % 8
+            last_byte_bits = '' + f'{last_byte[0]:08b}'
+            #print(f'Last byte bits: {last_byte_bits} y bits faltantes: {bits_faltantes}')
+            if bits_faltantes > 0:
+                # Tomar los n últimos bits del string
+                last_byte_bits = last_byte_bits[-bits_faltantes:]
+
+            # print(f'last_byte_bits cambiado: {last_byte_bits}')
+            # print(bits)
+            bits += last_byte_bits
+
+            #print(f'bits: {bits} de tamaño{len(bits)}')
+            
+            # Verificación: asegúrate de que los bits son suficientes
+            if len(bits) < self.m:
+                raise ValueError(f"No hay suficientes bits para llenar la fila {i}: se esperaban {self.m} bits pero se encontraron {len(bits)}")
+            
+            # Asignar los primeros m bits a la fila i de la matriz T
             for j in range(self.m):
-                T[i, j] = int(bits[i * self.m + j])  # Asignar los bits a la matriz T
+                #print(f'j: {j} y bits[j]: {int(bits[j])}')
+                T[i, j] = int(bits[j])  # Asignar el bit correspondiente
+            
+            #print(T[i])
         return public_seed, T
 
     def squeeze_bits(self, shake, num_bits):
@@ -64,6 +111,7 @@ class KG:
 
     def SqueezePublicMap(self, public_sponge):
         # Generar la matriz C, que tiene m filas y 1 columna (m * 1 bits)
+        
         bits_C = self.squeeze_bits(public_sponge, self.m * 1)
         C = np.array([int(bits_C[i]) for i in range(self.m)]).reshape((self.m, 1))
         
