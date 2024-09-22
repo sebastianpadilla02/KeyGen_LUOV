@@ -16,10 +16,10 @@ class KG:
         private_sponge = self.InitializeAndAbsorb(private_seed)
         #public_seed = self.SqueezePublicSeed(private_sponge)
         public_seed, T = self.SqueezeT(private_sponge)
-        print(T)
+        #print(T)
         self.SHAKE = 128
-        public_sponge = self.InitializeAndAbsorb(public_seed)
-        C, L, Q1 = self.SqueezePublicMap(public_sponge)
+        #public_sponge = self.InitializeAndAbsorb(public_seed)
+        C, L, Q1 = self.SqueezePublicMap(public_seed)
         Q2 = self.FindQ2(Q1, T)
         self.public_key = self.FindPublicKey(Q2, public_seed)
 
@@ -102,27 +102,117 @@ class KG:
             #print(T[i])
         return public_seed, T
 
-    def squeeze_bits(self, shake, num_bits):
-        """Función para exprimir una cantidad específica de bits de la esponja."""
-        num_bytes = (num_bits + 7) // 8  # Calcular cuántos bytes se necesitan
-        random_bytes = shake.digest(num_bytes)
-        bits = ''.join(f'{byte:08b}' for byte in random_bytes)
-        return bits[:num_bits]
+    def G(self, public_seed: bytes, index: int, num_bytes: int) -> bytes:
+        # Concatenar el public_seed con el índice
+        seed_with_index = public_seed + bytes([index])
 
-    def SqueezePublicMap(self, public_sponge):
-        # Generar la matriz C, que tiene m filas y 1 columna (m * 1 bits)
-        
-        bits_C = self.squeeze_bits(public_sponge, self.m * 1)
-        C = np.array([int(bits_C[i]) for i in range(self.m)]).reshape((self.m, 1))
-        
-        # Generar la matriz L, que tiene m filas y n columnas (m * n bits)
-        bits_L = self.squeeze_bits(public_sponge, self.m * self.n)
-        L = np.array([int(bits_L[i]) for i in range(self.m * self.n)]).reshape((self.m, self.n))
-        
-        # Generar la matriz Q1, que tiene m filas y (v*(v+1)/2 + v*m) columnas (m * [v*(v+1)/2 + v*m] bits)
+        # Inicializar SHAKE128 (se debe inicializar cada vez)
+        shake = hashlib.shake_128()
+        shake.update(seed_with_index)
+
+        # Generar el número de bytes necesario
+        return shake.digest(num_bytes)
+
+
+    # def squeeze_bits(self, shake, num_bits):
+    #     """Función para exprimir una cantidad específica de bits de la esponja."""
+    #     num_bytes = (num_bits + 7) // 8  # Calcular cuántos bytes se necesitan
+    #     random_bytes = shake.digest(num_bytes)
+    #     bits = ''.join(f'{byte:08b}' for byte in random_bytes)
+    #     return bits[:num_bits]
+
+    def SqueezePublicMap(self, public_seed):
         q1_size = self.v * (self.v + 1) // 2 + self.v * self.m
-        bits_Q1 = self.squeeze_bits(public_sponge, self.m * q1_size)
-        Q1 = np.array([int(bits_Q1[i]) for i in range(self.m * q1_size)]).reshape((self.m, q1_size))
+
+        # Inicializamos las matrices C, L y Q1
+        C = np.zeros((self.m, 1), dtype=int)
+        L = np.zeros((self.m, self.n), dtype=int)
+        Q1 = np.zeros((self.m, q1_size), dtype=int)
+
+        # El número de bytes necesarios para cada bloque de 16 filas
+        num_bytes_per_block = 2 * (1 + self.n + (self.v*(self.v+1))//2 + self.v * self.m)
+
+        for i in range((self.m + 15)//16):
+
+            G_output = self.G(public_seed, i, num_bytes_per_block)
+
+            #Generar la matriz C
+            # Tomar los primeros 2 bytes
+            first_2_bytes = G_output[:2]
+
+            bits = ''.join(f'{byte:08b}' for byte in first_2_bytes)
+
+            if(self.m % 16 != 0) and (i == (self.m + 15)//16 - 1):
+                bytes_needed = ((self.m % 16) + 7)//8
+                bits_added = 0
+                pos = 0
+                if(bytes_needed == 2):
+                    for l in range(16*i, 16*i + 8):
+                        C[l, 0] = bits[bits_added]
+                        bits_added += 1
+                    
+                    pos = l + 1
+
+                bits_restantes = self.m % 16 - bits_added
+                #print(f'bits_restantes: {bits_restantes}')
+                bits_menos_significativos = bits[-bits_restantes:]
+                #print(bits_menos_significativos)
+                #print(f'pos: {pos}')
+                for h in range(bits_restantes):
+                    C[pos, 0] = bits_menos_significativos[h]
+                    pos += 1
+            else:
+                bits_added = 0
+                for c in range(16*i, 16*i + 16):
+                    C[c, 0] = bits[bits_added]
+                    bits_added += 1
+            
+            #Generar la matriz L
+            bytes_for_L = G_output[2:2 + 2 * self.n]
+
+            bits_L = ''.join(f'{byte:08b}' for byte in bytes_for_L)
+
+            if(self.m % 16 != 0) and (i == (self.m + 15)//16 - 1):
+                bytes_needed = ((self.m % 16) + 7)//8
+                bits_added = 0
+                column = 0
+                #Pa que recuerdes, mejor haz toda la columna entera y ya luego vas cambiando la fila
+                for cont_bits in range(0, len(bits_L), 16):
+                    bits_2_bytes = bits_L[cont_bits:cont_bits+16]
+                    #print(bits_2_bytes)
+                    bits_added = 0
+                    pos = 0
+                    if(bytes_needed == 2):
+                        for l in range(16*i, 16*i + 8):
+                            L[l, column] = bits_2_bytes[bits_added]
+                            bits_added += 1
+                        
+                        pos = l + 1
+
+                    bits_restantes = self.m % 16 - bits_added
+
+                    bits_menos_significativos = bits_2_bytes[-bits_added:]
+
+                    for h in range(bits_restantes):
+                        L[pos, column] = bits_menos_significativos[h]
+                        pos += 1
+
+                    column += 1
+            else:
+                bits_added = 0
+                
+                for j in range(self.n):
+                    for c in range(16*i, 16*i + 16):
+                        L[c, j] = bits_L[bits_added]
+                        bits_added += 1
+            
+            #Generar la matriz Q1
+            
+        
+        # # Generar la matriz Q1, que tiene m filas y (v*(v+1)/2 + v*m) columnas (m * [v*(v+1)/2 + v*m] bits)
+        
+        # bits_Q1 = self.squeeze_bits(public_sponge, self.m * q1_size)
+        # Q1 = np.array([int(bits_Q1[i]) for i in range(self.m * q1_size)]).reshape((self.m, q1_size))
         
         return C, L, Q1
 
