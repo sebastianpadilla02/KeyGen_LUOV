@@ -5,7 +5,7 @@ from typing import Tuple
 class KG:
 
     #Constructor de la clase, donde se almacena cada parametro(r, m, v, SHAKE, n)
-    def __init__(self, params: list, private_seed: bytes) -> bytes:
+    def __init__(self, params: list, private_seed: bytes):
         self.r = params[0]
         self.m = params[1]
         self.v = params[2]
@@ -25,7 +25,10 @@ class KG:
         #Generación de las 3 matrices C(parte constante), L(parte lineal), Q1(parte cuadrática) a partir de la semilla pública
         C, L, Q1 = self.SqueezePublicMap(public_seed)
 
+        #Encontrar Q2 que sirve para obtener la llave pública, a partir de Q1 y T
         Q2 = self.FindQ2(Q1, T)
+
+        #Se encuentra la llave publica
         self.public_key = self.FindPublicKey(Q2, public_seed)
 
     #Función que inicializa el SHAKE y absorve la semilla privada
@@ -149,26 +152,31 @@ class KG:
                     pos += 1
             else:
                 bits_added = 0   # Contador de bits añadidos
-                # Añadir fila a fila cada bit generado
+                # Añadir columna a columna cada bit generado
                 for c in range(16*i, 16*i + 16):
                     C[c, 0] = bits[bits_added]
                     bits_added += 1
             
             #Generar la matriz L
+            # Tomar los siguientes 2n bytes
             bytes_for_L = G_output[2:2 + 2 * self.n]
 
+            # Conversión de los 2n bytes a bits en formato string
             bits_L = ''.join(f'{byte:08b}' for byte in bytes_for_L)
 
+            # En este condicional se llena la matriz L, si m no es divisible entre 16 y es el ultimo bloque generado entra al if
             if(self.m % 16 != 0) and (i == (self.m + 15)//16 - 1):
-                bytes_needed = ((self.m % 16) + 7)//8
+                bytes_needed = ((self.m % 16) + 7)//8   # Calcular cuantos bytes quedan faltando para rellenar la fila de la matriz
                 bits_added = 0
                 column = 0
-                #Pa que recuerdes, mejor haz toda la columna entera y ya luego vas cambiando la fila
+
                 for cont_bits in range(0, len(bits_L), 16):
+                    #Se extraen dos bytes 
                     bits_2_bytes = bits_L[cont_bits:cont_bits+16]
-                    #print(bits_2_bytes)
+
                     bits_added = 0
                     pos = 0
+                    #Si se necesitan 2 bytes para completar las filas, se añade un byte normal
                     if(bytes_needed == 2):
                         for l in range(16*i, 16*i + 8):
                             L[l, column] = bits_2_bytes[bits_added]
@@ -176,6 +184,7 @@ class KG:
                         
                         pos = l + 1
 
+                    # Se calculan los bits restantes y se añaden los menos significativos a la matriz
                     bits_restantes = self.m % 16 - bits_added
 
                     bits_menos_significativos = bits_2_bytes[-bits_added:]
@@ -186,8 +195,8 @@ class KG:
 
                     column += 1
             else:
-                bits_added = 0
-                
+                bits_added = 0   # Contador de bits añadidos
+                # Añadir columna a columna cada bit generado
                 for j in range(self.n):
                     for c in range(16*i, 16*i + 16):
                         L[c, j] = bits_L[bits_added]
@@ -197,19 +206,22 @@ class KG:
 
             total_bytes_for_Q1 = 2 * ((self.v * (self.v + 1)) // 2 + self.v * self.m)
 
+            #Se obtienen los siguientes 2(v*(v+1)/2 + v*m) bytes
             bytes_for_Q1 = G_output[2 + 2 * self.n:2 + 2 * self.n + total_bytes_for_Q1]
 
+            # Se convierten los bytes a bits en formato string
             bits_Q1 = ''.join(f'{byte:08b}' for byte in bytes_for_Q1)
 
+            # En este condicional se llena la matriz Q1, si m no es divisible entre 16 y es el ultimo bloque generado entra al if
             if(self.m % 16 != 0) and (i == (self.m + 15)//16 - 1):
-                bytes_needed = ((self.m % 16) + 7)//8
+                bytes_needed = ((self.m % 16) + 7)//8   #Bytes necesarios para llenar la matriz
                 bits_added = 0
                 column = 0
                 for cont_bits in range(0, len(bits_Q1), 16):
                     bits_2_bytes = bits_Q1[cont_bits:cont_bits+16]
-                    #print(bits_2_bytes)
                     bits_added = 0
                     pos = 0
+                    #Se añade un byte de manera normal si se necesitan 2 bytes
                     if(bytes_needed == 2):
                         for l in range(16*i, 16*i + 8):
                             Q1[l, column] = bits_2_bytes[bits_added]
@@ -217,6 +229,7 @@ class KG:
                         
                         pos = l + 1
 
+                    #Se calculan los bits restantes y se toman los menos significativos de este byte
                     bits_restantes = self.m % 16 - bits_added
 
                     bits_menos_significativos = bits_2_bytes[-bits_added:]
@@ -227,7 +240,9 @@ class KG:
 
                     column += 1
             else:
+                #Contador de bytes añadidos
                 bits_added = 0
+                #Se añaden columna a columna los bits
                 for j in range ((self.v * (self.v + 1)) // 2 + self.v * self.m):
                     for c in range(16*i, 16*i + 16):
                         Q1[c, j] = bits_Q1[bits_added]
@@ -235,7 +250,8 @@ class KG:
         
         return C, L, Q1
 
-    def findPk1(self, k, Q1):
+    #Encontrar Pk1
+    def findPk1(self, k: int, Q1: np.ndarray) -> np.ndarray:
         Pk_1 = np.zeros((self.v, self.v), dtype = int)
         column = 0
         for i in range(self.v):
@@ -246,7 +262,8 @@ class KG:
 
         return Pk_1
 
-    def findPk2(self, k, Q1):
+    #Encontrar Pk2
+    def findPk2(self, k: int, Q1: np.ndarray) -> np.ndarray:
         Pk_2 = np.zeros((self.v, self.m), dtype = int)
         column = 0
         for i in range(self.v):
@@ -257,19 +274,20 @@ class KG:
         
         return Pk_2
 
-    def FindQ2(self, Q1, T):
-        D2 = self.m * (self.m + 1) // 2
-        Q2 = np.zeros((self.m,D2), dtype = int) 
+    #Función para encontrar Q2
+    def FindQ2(self, Q1: np.ndarray, T: np.ndarray) -> np.ndarray:
+        D2 = self.m * (self.m + 1) // 2 #Dimension de columnas de Q2
+
+        #Inicializacion de Q2
+        Q2 = np.zeros((self.m,D2), dtype = int)
+
+        #Se llena la matriz Q2 tal cual como en el documento, se hacen las operaciones modulo 2 ya que estamos en F2
         for k in range(self.m):
             Pk_1 = self.findPk1(k, Q1)
             Pk_2 = self.findPk2(k, Q1)
             term1 = -np.dot(T.T, np.dot(Pk_1, T)) % 2
-            #print(term1)
             term2 = np.dot(T.T, Pk_2) %2
             Pk_3 = (term1 + term2) % 2
-
-            #Asegurar que Pk3 sea skew-simétrica
-            #Pk_3 = (Pk_3 - Pk_3.T) / 2
 
             column = 0
             for i in range(self.m):
@@ -281,7 +299,7 @@ class KG:
         
         return Q2
     
-    def bits_to_bytes(self, bit_string):
+    def bits_to_bytes(self, bit_string: str) -> bytes:
         # Convertir el string de bits a un entero
         byte_value = int(bit_string, 2)
 
@@ -291,21 +309,25 @@ class KG:
 
         return byte_array
 
-    def FindPublicKey(self, Q2, public_seed: bytes):
-        #print(Q2)
-        D2 = self.m * (self.m + 1) // 2
+    #Función para generar la llave publica
+    def FindPublicKey(self, Q2: np.ndarray, public_seed: bytes) -> bytes :
+        D2 = self.m * (self.m + 1) // 2   #Dimensiones de columna de Q2
         concat_bits = ''
+        
+        #Se recorre Q2 columna por columna y se va concatenando cada 1 y 0
         for j in range(D2):
             for i in range(self.m):
                 concat_bits += str(Q2[i, j])
 
-        # Si la longitud de los bits no es múltiplo de 8, tenemos bits sobrantes
+        # Si la longitud de los bits no es múltiplo de 8, tenemos bits sobrantes, estos bits se completan con ceros para formar el ultimo byte
         if len(concat_bits) % 8 > 0:
             while (len(concat_bits) % 8 != 0):
                 concat_bits += '0'
 
+        #Se convierte los bytes de la llave publica a bits en formato string
         public_seed_bits = ''.join(f'{byte:08b}' for byte in public_seed)
         
+        #Se concatena la semilla publica con los bits de Q2 traducidos y se convierten a bytes
         pk = self.bits_to_bytes(public_seed_bits + concat_bits)
         
         return pk
