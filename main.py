@@ -1,6 +1,6 @@
 import os
 
-from keygen_copy import KG
+from keygen import KG
 
 def lectura_params():
     op = 0
@@ -18,17 +18,35 @@ def lectura_params():
     elif op == 3:
         params = [7, 110, 374, 256]
 
-    return(params)
+    return params, op
 
 def generar_semilla_privada():
     private_seed = os.urandom(32)
     return private_seed
 
 if __name__ == "__main__":
-    params = lectura_params()
+    params, op = lectura_params()
     private_seed = generar_semilla_privada()
     llaves = KG(params, private_seed)
     public_key, private_key = llaves.public_key, private_seed
-    #print(f'public key: {public_key}')
-    #print(f'private key: {private_key}')
+    print(f'public key: {public_key} de len {len(public_key)}')
+    print(f'private key: {private_key} de len: {len(private_key)}')
+
+    if(op == 1):
+        publica = 'public_key_LUOV-7-57-197.bin'
+        privada = 'private_key_LUOV-7-57-197.bin'
+    elif(op == 2):
+        publica = 'public_key_LUOV-7-83-283.bin'
+        privada = 'private_key_LUOV-7-83-283.bin'
+    elif op == 3:
+        publica = 'public_key_LUOV-7-110-374.bin'
+        privada = 'private_key_LUOV-7-110-374.bin'
+
+    with open(publica, 'wb') as file:
+        # Escribir los bytes en el archivo
+        file.write(public_key)
+
+    with open(privada, 'wb') as file:
+        # Escribir los bytes en el archivo
+        file.write(private_key)
     
