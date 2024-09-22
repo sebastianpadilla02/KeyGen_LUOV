@@ -207,12 +207,45 @@ class KG:
                         bits_added += 1
             
             #Generar la matriz Q1
-            
-        
-        # # Generar la matriz Q1, que tiene m filas y (v*(v+1)/2 + v*m) columnas (m * [v*(v+1)/2 + v*m] bits)
-        
-        # bits_Q1 = self.squeeze_bits(public_sponge, self.m * q1_size)
-        # Q1 = np.array([int(bits_Q1[i]) for i in range(self.m * q1_size)]).reshape((self.m, q1_size))
+
+            total_bytes_for_Q1 = 2 * ((self.v * (self.v + 1)) // 2 + self.v * self.m)
+
+            bytes_for_Q1 = G_output[2 + 2 * self.n:2 + 2 * self.n + total_bytes_for_Q1]
+
+            bits_Q1 = ''.join(f'{byte:08b}' for byte in bytes_for_Q1)
+
+            if(self.m % 16 != 0) and (i == (self.m + 15)//16 - 1):
+                bytes_needed = ((self.m % 16) + 7)//8
+                bits_added = 0
+                column = 0
+                #Pa que recuerdes, mejor haz toda la columna entera y ya luego vas cambiando la fila
+                for cont_bits in range(0, len(bits_Q1), 16):
+                    bits_2_bytes = bits_Q1[cont_bits:cont_bits+16]
+                    #print(bits_2_bytes)
+                    bits_added = 0
+                    pos = 0
+                    if(bytes_needed == 2):
+                        for l in range(16*i, 16*i + 8):
+                            Q1[l, column] = bits_2_bytes[bits_added]
+                            bits_added += 1
+                        
+                        pos = l + 1
+
+                    bits_restantes = self.m % 16 - bits_added
+
+                    bits_menos_significativos = bits_2_bytes[-bits_added:]
+
+                    for h in range(bits_restantes):
+                        Q1[pos, column] = bits_menos_significativos[h]
+                        pos += 1
+
+                    column += 1
+            else:
+                bits_added = 0
+                for j in range ((self.v * (self.v + 1)) // 2 + self.v * self.m):
+                    for c in range(16*i, 16*i + 16):
+                        Q1[c, j] = bits_Q1[bits_added]
+                        bits_added += 1
         
         return C, L, Q1
 
