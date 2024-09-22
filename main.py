@@ -69,9 +69,14 @@ if __name__ == "__main__":
         publica = 'public_key_LUOV-79-76-341.bin'
         privada = 'private_key_LUOV-79-76-341.bin'
 
+    # Abrir el archivo en la carpeta 'keys' en modo binario
+    publica = os.path.join('keys', publica)
+
     #Se crean loas archivos y se almacenan los bytes de cada semilla en su respectivo archivo
     with open(publica, 'wb') as file:
         file.write(public_key)
+
+    privada = os.path.join('keys', privada)
 
     with open(privada, 'wb') as file:
         file.write(private_key)
